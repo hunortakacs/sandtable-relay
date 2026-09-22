@@ -98,9 +98,12 @@ wss.on('connection', (ws, req) => {
 			webSockets = webSockets.filter((client) => client !== ws);
 		});
 
-		ws.on('message', (data) => {
+		ws.on('message', (data, isBinary) => {
+			// TEMP DEBUG: tracking down a deterministic byte-count mismatch on
+			// pattern-upload chunks between the webapp and the ESP.
+			console.log(`[relay] webapp->esp bytes=${data.length} isBinary=${isBinary}`);
 			if (isSocketOpen(espSocket)) {
-				espSocket.send(data);
+				espSocket.send(data, { binary: isBinary });
 			}
 		});
 
