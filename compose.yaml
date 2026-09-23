@@ -1,0 +1,11 @@
+services:
+  relay:
+    build: .
+    container_name: sandtable-relay
+    restart: unless-stopped
+    # Loopback only: Caddy terminates TLS and proxies to it. Nothing about this
+    # service should be reachable directly from the internet.
+    ports:
+      - "127.0.0.1:8090:8090"
+    env_file:
+      - .env
