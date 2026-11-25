@@ -1,4 +1,4 @@
-FROM node:22-alpine
+FROM node:22-alpine@sha256:1314fb30ec37592d5845e5a160d522c0e680972aa534549940b8d73bde88481a
 # Node 25+ no longer ships corepack, which installs the pnpm that package.json names.
 # renovate: datasource=npm depName=corepack
 ARG COREPACK_VERSION=0.36.0
