@@ -5,6 +5,8 @@
     "docker:pinDigests",
     "helpers:pinGitHubActionDigests"
   ],
+  "minimumReleaseAge": "3 days",
+  "minimumReleaseAgeBehaviour": "timestamp-optional",
   "packageRules": [
     {
       "description": "One rolling PR for every non-major update; majors get their own.",
