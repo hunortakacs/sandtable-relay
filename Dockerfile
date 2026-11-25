@@ -1,5 +1,8 @@
 FROM node:22-alpine
-RUN corepack enable
+# Node 25+ no longer ships corepack, which installs the pnpm that package.json names.
+# renovate: datasource=npm depName=corepack
+ARG COREPACK_VERSION=0.36.0
+RUN npm install --global corepack@${COREPACK_VERSION} && corepack enable
 
 WORKDIR /app
 
