@@ -1,0 +1,13 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "timezone": "Europe/Budapest",
+  "schedule": ["before 6am on monday"],
+  "packageRules": [
+    {
+      "description": "One weekly PR with every update; checks prove it before it merges.",
+      "matchPackageNames": ["*"],
+      "groupName": "dependencies"
+    }
+  ]
+}
