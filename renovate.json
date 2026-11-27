@@ -1,20 +1,4 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": [
-    "config:recommended",
-    "docker:pinDigests",
-    "helpers:pinGitHubActionDigests",
-    "customManagers:dockerfileVersions"
-  ],
-  "minimumReleaseAge": "3 days",
-  "minimumReleaseAgeBehaviour": "timestamp-optional",
-  "packageRules": [
-    {
-      "description": "One rolling PR for every non-major update; majors get their own.",
-      "matchPackageNames": [
-        "*"
-      ],
-      "groupName": "dependencies"
-    }
-  ]
+  "extends": ["local>hunortakacs/renovate-config"]
 }
