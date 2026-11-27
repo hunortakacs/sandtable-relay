@@ -3,6 +3,23 @@ import 'dotenv/config';
 import express from 'express';
 import http from 'http';
 import axios from 'axios';
+import pino from 'pino';
+
+// JSON lines on stdout: timestamp, level, logger, message, and exception where there is an error.
+const log = pino({
+	level: process.env.LOG_LEVEL || 'info',
+	base: { logger: 'sandtable-relay' },
+	messageKey: 'message',
+	errorKey: 'exception',
+	timestamp: () => `,"timestamp":"${new Date().toISOString()}"`,
+	formatters: { level: (label) => ({ level: label }) },
+});
+
+// A crash lands in the log as one record with its stack, not as loose lines on stderr.
+process.on('uncaughtException', (error) => {
+	log.fatal(error, 'uncaught exception');
+	process.exit(1);
+});
 
 const app = express();
 const server = http.createServer(app);
@@ -56,14 +73,14 @@ function keepServerAlive() {
 	}
 
 	lastKeepAlivePing = Date.now();
-	console.log('Sending HTTP keepalive ping');
+	log.info('Sending HTTP keepalive ping');
 	axios
 		.get(keepAliveUrl)
 		.then((response) => {
-			console.log('HTTP ping successful:', response.status);
+			log.info({ status: response.status }, 'HTTP ping successful');
 		})
 		.catch((error) => {
-			console.error('Error pinging server:', error.message);
+			log.error(error, 'Error pinging server');
 		});
 }
 
@@ -89,7 +106,7 @@ function cleanupESP() {
 // all, which is exactly the window where a client most needs to be told.
 setInterval(() => {
 	if (espSocket && Date.now() - espLastSeen > ESP_TIMEOUT_MS) {
-		console.log('Esp did not respond for too long, terminating.');
+		log.warn('Esp did not respond for too long, terminating');
 		cleanupESP();
 	} else {
 		broadcastEspState();
@@ -104,7 +121,7 @@ setInterval(() => {
 	webSockets.forEach((socket) => {
 		if (!isSocketOpen(socket)) return;
 		if (socket.isAlive === false) {
-			console.log('Terminating unresponsive webapp socket');
+			log.warn('Terminating unresponsive webapp socket');
 			socket.terminate();
 			return;
 		}
@@ -114,14 +131,15 @@ setInterval(() => {
 }, PING_INTERVAL_MS);
 
 wss.on('error', (error) => {
-	console.log('Server error, name:', error.name, ', message:', error.message);
+	log.error(error, 'Server error');
 });
 
 wss.on('connection', (ws, req) => {
 	let protocols = (req.headers['sec-websocket-protocol'] || '').split(',').map((p) => p.trim());
 
 	if (protocols.length < 2 || protocols[1] != password) {
-		console.log('Unauthorized connection: ', protocols);
+		// Never the protocols themselves: the second one is the password the client tried.
+		log.warn({ role: protocols[0] }, 'Unauthorized connection');
 		ws.close(1008, 'Unauthorized connection');
 		return;
 	}
@@ -132,13 +150,13 @@ wss.on('connection', (ws, req) => {
 	});
 
 	if (protocols[0] === 'webapp') {
-		console.log('Webapp connected');
+		log.info('Webapp connected');
 		webSockets.push(ws);
 
 		ws.send(Buffer.from([WSCmdType_ESP_STATE, isSocketOpen(espSocket) ? 1 : 0]));
 
 		ws.on('close', () => {
-			console.log('Webapp disconnected');
+			log.info('Webapp disconnected');
 			webSockets = webSockets.filter((client) => client !== ws);
 		});
 
@@ -149,19 +167,19 @@ wss.on('connection', (ws, req) => {
 		});
 
 		ws.on('error', (err) => {
-			console.error('Webapp error, terminating:', err);
+			log.error(err, 'Webapp error, terminating');
 			webSockets = webSockets.filter((client) => client !== ws);
 			ws.terminate();
 		});
 	}
 
 	if (protocols[0] === 'esp') {
-		console.log('Esp connected');
+		log.info('Esp connected');
 		if (isSocketOpen(espSocket) && espSocket !== ws) {
 			// An ESP that reconnected before its previous socket was reaped
 			// would otherwise leave a zombie behind whose eventual 'close'
 			// tears down the *new* connection via cleanupESP().
-			console.log('Replacing a previous ESP connection');
+			log.warn('Replacing a previous ESP connection');
 			espSocket.removeAllListeners();
 			espSocket.terminate();
 		}
@@ -185,23 +203,23 @@ wss.on('connection', (ws, req) => {
 		});
 
 		ws.on('close', () => {
-			console.log('Esp disconnected');
+			log.info('Esp disconnected');
 			if (espSocket === ws) cleanupESP();
 		});
 
 		ws.on('error', (err) => {
-			console.error('ESP error:', err);
+			log.error(err, 'ESP error');
 			if (espSocket === ws) cleanupESP();
 		});
 	}
 });
 
 app.get('/ping', (req, res) => {
-	console.log('keepalive ping received');
+	log.debug('keepalive ping received');
 	res.status(200).send('OK');
 });
 
 const port = process.env.PORT || 8090;
 server.listen(port, () => {
-	console.log(`Server and WebSocket listening on port ${port}`);
+	log.info({ port }, 'Server and WebSocket listening');
 });
